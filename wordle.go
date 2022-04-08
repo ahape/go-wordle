@@ -57,7 +57,7 @@ func colorizedResponse(word string, answer string) string {
 
 func printShareText(shareText string, wordleNum int, tries int, maxTries int) {
     var triesText interface{} = "X"
-    if (tries < maxTries) {
+    if (tries <= maxTries) {
         triesText = tries
     }
     fmt.Println("\n=== COPY BELOW TO SHARE WITH FRIENDS ===\n")
