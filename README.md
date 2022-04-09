@@ -1,5 +1,5 @@
 # go-wordle
-Basic Wordle CLI written in Golang, in <= 100 lines of code
+Basic Wordle CLI written in Golang
 
 Here's what to expect
 

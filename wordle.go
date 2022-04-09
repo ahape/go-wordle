@@ -1,100 +1,98 @@
 package main
+
 import (
     "fmt"
-    "io/ioutil"
-    "encoding/json"
     "bufio"
     "os"
     "strings"
     "time"
 )
-type Config map[string][]string
 
-func getJson() Config {
-    file, _ := ioutil.ReadFile("./words.json")
-    var parsed Config
-    _ = json.Unmarshal(file, &parsed)
-    return parsed
+type Wordle struct {
+    config Config
+    startDate time.Time
+    answer string
+    shareText string
+    wordleNum int
+    wordLen int
+    maxTries int
+    tries int
+    solved bool
 }
 
-func getAnswer(config Config) (string, int) {
-    wordleStartDate := time.Date(2021, time.June, 19, 0, 0, 0, 0, time.Local)
+func NewWordle() *Wordle {
+    w := &Wordle{
+        maxTries: 6,
+        wordLen: 5,
+        config: getJson(),
+        startDate: time.Date(2021, time.June, 19, 0, 0, 0, 0, time.Local),
+    }
+    w.loadAnswer()
+    return w
+}
+
+func (w *Wordle) loadAnswer() {
     year, month, day := time.Now().Date()
     todayDate := time.Date(year, month, day, 0, 0, 0, 0, time.Local)
-    answerIndex := int(todayDate.Sub(wordleStartDate) / (24 * time.Hour))
-    return config["answers"][answerIndex], answerIndex
+    w.wordleNum = int(todayDate.Sub(w.startDate) / (24 * time.Hour))
+    w.answer = w.config["answers"][w.wordleNum]
 }
 
-func contains(arr []string, elem string) bool {
-    for _, e := range arr {
-        if e == elem {
-            return true
-        }
-    }
-    return false
-}
-
-func colorizedResponse(word string, answer string) string {
+func (w *Wordle) colorizedResponse(word string) {
     var normalText, normalEmoji string = "\033[0m", "\u2B1C"
     var greenText, greenEmoji string = "\033[32m", "\U0001f7e9"
     var yellowText, yellowEmoji string = "\033[33m", "\U0001f7e8"
-    var emojis, text string = "", ""
+    var text string
     for i, char := range strings.Split(word, "") {
-        if char == string(answer[i]) {
-            emojis += greenEmoji
+        if char == string(w.answer[i]) {
+            w.shareText += greenEmoji
             text += greenText + strings.ToUpper(char) + normalText
-        } else if contains(strings.Split(answer, ""), char) {
-            emojis += yellowEmoji
+        } else if contains(strings.Split(w.answer, ""), char) {
+            w.shareText += yellowEmoji
             text += yellowText + strings.ToUpper(char) + normalText
         } else {
-            emojis += normalEmoji
+            w.shareText += normalEmoji
             text += strings.ToUpper(char)
         }
     }
+    w.shareText += "\n"
     fmt.Println("==> " + text)
-    return emojis + "\n"
 }
 
-func printShareText(shareText string, wordleNum int, tries int, maxTries int) {
+func (w Wordle) printShareText() {
+    tries := w.tries + 1
     var triesText interface{} = "X"
-    if (tries <= maxTries) {
+    if (tries <= w.maxTries) {
         triesText = tries
     }
     fmt.Println("\n=== COPY BELOW TO SHARE WITH FRIENDS ===\n")
-    fmt.Printf("Wordle %d %v/%d\n", wordleNum, triesText, maxTries)
-    fmt.Println(shareText)
+    fmt.Printf("Wordle %d %v/%d\n", w.wordleNum, triesText, w.maxTries)
+    fmt.Println(w.shareText)
 }
 
-func main() {
-    const wordLen, maxTries int = 5, 6
-    config := getJson()
+func (w *Wordle) Start() {
     reader := bufio.NewReader(os.Stdin)
-    answer, wordleNum := getAnswer(config)
-    allWords := append(config["answers"], config["others"]...)
-    var shareText string
-    var solved bool
-    var tries int
-    fmt.Printf("This is Wordle. Enter the correct %d letter word. You have %d tries\n", wordLen, maxTries)
-    for tries < maxTries && !solved {
+    fmt.Printf("This is Wordle. Enter the correct %d letter word. You have %d tries\n", w.wordLen, w.maxTries)
+    for w.tries < w.maxTries && !w.solved {
         word, _ := reader.ReadString('\n')
         word = strings.ToLower(strings.TrimSpace(word))
-        if word == answer {
-            shareText += colorizedResponse(word, answer)
-            solved = true
-        } else if contains(allWords, word) {
-            shareText += colorizedResponse(word, answer)
-            tries++
-            fmt.Printf("%d tries left. Guess again\n", maxTries - tries)
-        } else if len(word) != wordLen {
-            fmt.Printf("Your word has to be %d letters. Guess again\n", wordLen)
+        if word == w.answer {
+            w.colorizedResponse(word)
+            w.solved = true
+        } else if contains(w.config["allWords"], word) {
+            w.colorizedResponse(word)
+            w.tries++
+            fmt.Printf("%d tries left. Guess again\n", w.maxTries - w.tries)
+        } else if len(word) != w.wordLen {
+            fmt.Printf("Your word has to be %d letters. Guess again\n", w.wordLen)
         } else {
             fmt.Println("Not a valid word. Guess again")
         }
     }
-    if solved {
+    if w.solved {
         fmt.Println("You solved it!")
     } else {
-        fmt.Printf("Ouch! You failed. The word was '%s'\n", answer)
+        fmt.Printf("Ouch! You failed. The word was '%s'\n", w.answer)
     }
-    printShareText(shareText, wordleNum, tries + 1, maxTries)
+    w.printShareText()
 }
